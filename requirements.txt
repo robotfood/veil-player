@@ -1,0 +1,5 @@
+Flask>=2.0
+requests>=2.20
+xmltodict>=0.12.0
+python-dotenv>=0.15.0
+gunicorn

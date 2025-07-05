@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeilPlayer</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background: #f4f4f4; color: #333; }
+        h1, h2 { color: #0056b3; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .vpn-status { padding: 1em; border-radius: 5px; margin-bottom: 1em; }
+        .vpn-status.running { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .vpn-status.stopped { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .btn { padding: 0.5em 1em; border: none; border-radius: 4px; color: white; cursor: pointer; }
+        .btn-connect { background: #28a745; }
+        .btn-disconnect { background: #dc3545; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 0.5em; border-bottom: 1px solid #eee; }
+        a { text-decoration: none; color: #007bff; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VeilPlayer</h1>
+        
+        <h2>VPN Status</h2>
+        <div id="vpn-status-box" class="vpn-status {{ 'running' if vpn_status == 'RUNNING' else 'stopped' }}">
+            Current Status: <strong id="vpn-status-text">{{ vpn_status }}</strong>
+        </div>
+        <button id="connect-btn" class="btn btn-connect">Connect VPN</button>
+        <button id="disconnect-btn" class="btn btn-disconnect">Disconnect VPN</button>
+        <p id="vpn-message"></p>
+
+        <h2>Channels</h2>
+        <ul id="channel-list">
+            {% if channels %}
+                {% for channel in channels %}
+                    <li>
+                        <a href="/stream/{{ channel.id }}" target="_blank">{{ channel.name }}</a>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <li>No channels loaded. Check your configuration.</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const connectBtn = document.getElementById('connect-btn');
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            const vpnMessage = document.getElementById('vpn-message');
+            const vpnStatusText = document.getElementById('vpn-status-text');
+            const vpnStatusBox = document.getElementById('vpn-status-box');
+            const channelList = document.getElementById('channel-list');
+
+            // Load channels if not already loaded
+            if (channelList && channelList.children.length === 0) {
+                fetch('/api/channels')
+                    .then(response => response.json())
+                    .then(channels => {
+                        if (Array.isArray(channels) && channels.length > 0) {
+                            channelList.innerHTML = channels.map(channel => 
+                                `<li><a href="/stream/${channel.id}" target="_blank">${channel.name}</a></li>`
+                            ).join('');
+                        } else {
+                            channelList.innerHTML = '<li>No channels available. Check your configuration.</li>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading channels:', error);
+                        channelList.innerHTML = '<li>Error loading channels. Please check the console for details.</li>';
+                    });
+            }
+
+            async function updateVpnStatus() {
+                const response = await fetch('/api/vpn/status');
+                const data = await response.json();
+                vpnStatusText.textContent = data.status;
+                vpnStatusBox.className = 'vpn-status ' + (data.status === 'RUNNING' ? 'running' : 'stopped');
+            }
+
+            connectBtn.addEventListener('click', async () => {
+                vpnMessage.textContent = 'Connecting...';
+                const response = await fetch('/api/vpn/connect', { method: 'POST' });
+                const data = await response.json();
+                vpnMessage.textContent = data.message;
+                setTimeout(updateVpnStatus, 2000);
+            });
+
+            disconnectBtn.addEventListener('click', async () => {
+                vpnMessage.textContent = 'Disconnecting...';
+                const response = await fetch('/api/vpn/disconnect', { method: 'POST' });
+                const data = await response.json();
+                vpnMessage.textContent = data.message;
+                setTimeout(updateVpnStatus, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
